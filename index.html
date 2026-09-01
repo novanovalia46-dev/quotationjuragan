@@ -1,0 +1,1243 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<title>Database Barang & Quotation</title>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.1/font/bootstrap-icons.min.css" rel="stylesheet">
+<style>
+  :root { --brand:#2f5d50; --brand-dark:#20423a; --bg:#f4f6f7; }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); font-family: 'Segoe UI', Arial, sans-serif; }
+  .sidebar {
+    position: fixed; top:0; left:0; bottom:0; width: 230px; background: var(--brand-dark);
+    color:#fff; padding-top: 10px; z-index: 1040; transition: transform .25s ease;
+  }
+  .sidebar .brand { padding: 14px 18px; font-weight:700; font-size:1.05rem; border-bottom:1px solid rgba(255,255,255,.15); }
+  .sidebar .nav-link { color: rgba(255,255,255,.85); padding: 12px 18px; border-radius:0; cursor:pointer; }
+  .sidebar .nav-link i { width:22px; }
+  .sidebar .nav-link.active, .sidebar .nav-link:hover { background: var(--brand); color:#fff; }
+  .content-wrap { margin-left: 230px; padding: 20px 22px 60px; min-height:100vh; }
+  .topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+  .btn-brand { background: var(--brand); border-color: var(--brand); color:#fff; }
+  .btn-brand:hover { background: var(--brand-dark); border-color: var(--brand-dark); color:#fff; }
+  .stat-card { border:none; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,.06); }
+  .stat-card .icon-box { width:48px; height:48px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.3rem; color:#fff; }
+  .page-section { display:none; }
+  .page-section.active { display:block; }
+  .card { border:none; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,.05); }
+  table.table thead th { background:#f1f3f4; font-size:.82rem; text-transform:uppercase; letter-spacing:.3px; }
+  .table-responsive { max-height: 60vh; }
+  .badge-jenis { background:#e7f1ee; color:var(--brand-dark); }
+  #loadingOverlay {
+    position: fixed; inset:0; background:rgba(255,255,255,.75); z-index:2000; display:none;
+    align-items:center; justify-content:center; flex-direction:column; gap:10px;
+  }
+  .toast-container { z-index: 2100; }
+  .preview-box { border:1px dashed #ccc; border-radius:10px; padding:10px; text-align:center; min-height:100px; display:flex; align-items:center; justify-content:center; }
+  .preview-box img { max-height:90px; max-width:100%; }
+  .qr-note { font-size:.78rem; color:#888; }
+  .mobile-toggle { display:none; }
+  #quotationPreview { background: #ececec; padding: 12px; }
+  #quotationPreview .quotation-paper {
+    position: relative;
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    color: #2b2b2b;
+    margin: 0 auto;
+    padding: 2.5cm 40px 2.5cm 40px;
+    background: #fff;
+    font-size: 13px;
+    line-height: 1.4;
+    min-height: 720px;
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(0,0,0,.08);
+  }
+  #quotationPreview .header { display: table; width: 100%; margin-bottom: 30px; }
+  #quotationPreview .header-left { display: table-cell; width: 60%; vertical-align: top; }
+  #quotationPreview .header-right { display: table-cell; width: 40%; vertical-align: top; text-align: right; }
+  #quotationPreview .brand-logo { margin-bottom: 8px; }
+  #quotationPreview .brand-primary { font-size: 24px; font-weight: 800; letter-spacing: 3px; color: #1a1a1a; line-height: 1; }
+  #quotationPreview .brand-secondary { font-size: 13px; font-weight: 600; letter-spacing: 6px; color: #e3b853; margin-top: 2px; line-height: 1.2; }
+  #quotationPreview .toko-info { font-size: 12px; color: #666666; margin: 0; line-height: 1.4; }
+  #quotationPreview .invoice-title { font-size: 28px; font-weight: 500; letter-spacing: 2px; color: #c79850; margin: 0; text-transform: uppercase; }
+  #quotationPreview .row-info { display: table; width: 100%; margin-bottom: 25px; }
+  #quotationPreview .col-customer { display: table-cell; width: 55%; vertical-align: top; }
+  #quotationPreview .col-meta { display: table-cell; width: 45%; vertical-align: top; }
+  #quotationPreview .label-title { font-weight: bold; color: #1a1a1a; margin-bottom: 4px; font-size: 13px; }
+  #quotationPreview .customer-name { font-size: 14px; font-weight: bold; color: #1a1a1a; }
+  #quotationPreview .customer-extra { color: #555; margin-top: 2px; font-size: 12px; }
+  #quotationPreview .meta-table { width: 100%; border-collapse: collapse; }
+  #quotationPreview .meta-table td { padding: 2px 0; font-size: 13px; border: none; }
+  #quotationPreview .meta-table td.meta-label { font-weight: bold; color: #1a1a1a; width: 50%; }
+  #quotationPreview .meta-table td.meta-val { text-align: right; color: #333; }
+  #quotationPreview table.items { width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 25px; }
+  #quotationPreview table.items th { border-top: 1.5px solid #2c2c2c; border-bottom: 1.5px solid #2c2c2c; color: #1a1a1a; padding: 10px 6px; font-weight: bold; text-align: left; font-size: 12px; background: transparent; }
+  #quotationPreview table.items td { border-bottom: 1px solid #e0e0e0; padding: 10px 6px; font-size: 12px; color: #333333; vertical-align: top; }
+  #quotationPreview .item-name { font-weight: bold; color: #1a1a1a; }
+  #quotationPreview .item-sub { font-size: 11px; color: #888; margin-top: 2px; }
+  #quotationPreview .row-bottom { display: table; width: 100%; table-layout: fixed; margin-top: 15px; }
+  #quotationPreview .col-notes { display: table-cell; width: 55%; vertical-align: top; padding-right: 25px; }
+  #quotationPreview .col-summary { display: table-cell; width: 45%; vertical-align: top; }
+  #quotationPreview .payment-block { margin-bottom: 15px; }
+  #quotationPreview .payment-content { min-height: 60px; }
+  #quotationPreview .payment-block strong { display: block; font-size: 12px; text-transform: uppercase; color: #1a1a1a; letter-spacing: 0.5px; margin-bottom: 4px; }
+  #quotationPreview .notes-list { margin: 0; padding-left: 18px; font-size: 12px; color: #555; line-height: 1.5; }
+  #quotationPreview .notes-list li { margin-bottom: 3px; }
+  #quotationPreview .summary-table { width: 100%; border-collapse: collapse; }
+  #quotationPreview .summary-table td { padding: 4px 0; font-size: 13px; border: none; }
+  #quotationPreview .summary-table td.sum-label { font-weight: bold; color: #1a1a1a; text-align: right; padding-right: 15px; }
+  #quotationPreview .summary-table td.sum-val { text-align: right; color: #1a1a1a; }
+  #quotationPreview .grand-total-row td { border-top: 1.5px solid #2c2c2c; padding-top: 8px !important; font-size: 16px !important; font-weight: bold; }
+  #quotationPreview .signature-section { margin-top: 40px; display: table; width: 100%; }
+  #quotationPreview .thanks-note { display: table-cell; width: 50%; vertical-align: bottom; font-size: 14px; font-weight: bold; color: #2c2c2c; }
+  #quotationPreview .signature-group { display: table-cell; width: 50%; text-align: right; vertical-align: bottom; }
+  #quotationPreview .signature-box { display: inline-block; width: 220px; text-align: center; margin-left: 15px; vertical-align: top; overflow: visible; position: relative; }
+  #quotationPreview .signature-image { width: 200px; height: auto; display: block; position: absolute; left: 8px; top: -35px; z-index: 10; pointer-events: none; }
+  #quotationPreview .owner-name { margin-top: 60px; font-weight: bold; font-size: 15px; color: #1a1a1a; position: relative; z-index: 1; }
+  #quotationPreview .signature-title { font-size: 11px; color: #666; margin-top: 3px; }
+  #quotationPreview .watermark-container { position: absolute; bottom: 35px; left: 0; right: 0; width: 100%; text-align: center; z-index: 9; pointer-events: none; }
+  #quotationPreview .watermark-logo { width: 200px; max-width: 300px; max-height: 70px; height: auto; opacity: 1; }
+  #quotationPreview .footer-banner { position: absolute; bottom: 0; left: 0; right: 0; background-color: #e3b853; color: #ffffff; text-align: center; padding: 8px 20px; font-size: 11px; letter-spacing: 0.5px; z-index: 10; }
+  @media (max-width: 991px) {
+    .sidebar { transform: translateX(-100%); }
+    .sidebar.show { transform: translateX(0); }
+    .content-wrap { margin-left: 0; }
+    .mobile-toggle { display:inline-flex; }
+  }
+</style>
+</head>
+<body>
+
+<div id="loadingOverlay">
+  <div class="spinner-border text-success" role="status"></div>
+  <div id="loadingText" class="fw-semibold text-secondary">Memuat...</div>
+</div>
+
+<div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer"></div>
+
+<!-- SIDEBAR -->
+<nav class="sidebar" id="sidebar">
+  <div class="brand"><i class="bi bi-box-seam"></i> Barang &amp; Quotation</div>
+  <div class="nav flex-column mt-2">
+    <a class="nav-link active" data-page="dashboard-page"><i class="bi bi-speedometer2"></i> Dashboard</a>
+    <a class="nav-link" data-page="barang-page"><i class="bi bi-database"></i> Database Barang</a>
+    <a class="nav-link" data-page="quotation-page"><i class="bi bi-file-earmark-text"></i> Buat Quotation</a>
+    <a class="nav-link" data-page="pengaturan-page"><i class="bi bi-gear"></i> Pengaturan</a>
+  </div>
+</nav>
+
+<div class="content-wrap">
+  <div class="topbar">
+    <div>
+      <button class="btn btn-outline-secondary mobile-toggle me-2" id="btnToggleSidebar"><i class="bi bi-list"></i></button>
+      <span class="h5 mb-0" id="pageTitle">Dashboard</span>
+    </div>
+  </div>
+
+  <!-- ==================== DASHBOARD ==================== -->
+  <section class="page-section active" id="dashboard-page">
+    <div class="row g-3">
+      <div class="col-6 col-md-3">
+        <div class="card stat-card p-3 h-100">
+          <div class="d-flex align-items-center gap-3">
+            <div class="icon-box" style="background:#2f5d50;"><i class="bi bi-box"></i></div>
+            <div>
+              <div class="text-secondary small">Total Barang</div>
+              <div class="h4 mb-0" id="statTotalBarang">0</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="card stat-card p-3 h-100">
+          <div class="d-flex align-items-center gap-3">
+            <div class="icon-box" style="background:#4a7c68;"><i class="bi bi-tags"></i></div>
+            <div>
+              <div class="text-secondary small">Total Jenis</div>
+              <div class="h4 mb-0" id="statTotalJenis">0</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="card stat-card p-3 h-100">
+          <div class="d-flex align-items-center gap-3">
+            <div class="icon-box" style="background:#a97c50;"><i class="bi bi-file-earmark-text"></i></div>
+            <div>
+              <div class="text-secondary small">Total Quotation</div>
+              <div class="h4 mb-0" id="statTotalQuotation">0</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="card stat-card p-3 h-100">
+          <div class="d-flex align-items-center gap-3">
+            <div class="icon-box" style="background:#375aa3;"><i class="bi bi-calendar-check"></i></div>
+            <div>
+              <div class="text-secondary small">Quotation Bulan Ini</div>
+              <div class="h4 mb-0" id="statQuotationBulanIni">0</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== DATABASE BARANG ==================== -->
+  <section class="page-section" id="barang-page">
+    <div class="card p-3 mb-3">
+      <div class="row g-2 align-items-end">
+        <div class="col-12 col-md-4">
+          <label class="form-label small mb-1">Cari Nama Barang</label>
+          <input type="text" class="form-control" id="filterSearch" placeholder="Ketik nama barang...">
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label small mb-1">Filter Jenis</label>
+          <select class="form-select" id="filterJenis"><option value="">Semua Jenis</option></select>
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label small mb-1">Filter Satuan</label>
+          <select class="form-select" id="filterSatuan"><option value="">Semua Satuan</option></select>
+        </div>
+        <div class="col-12 col-md-2 d-flex gap-2">
+          <button class="btn btn-outline-secondary w-50" id="btnResetFilter"><i class="bi bi-arrow-counterclockwise"></i> Reset</button>
+        </div>
+      </div>
+      <div class="d-flex justify-content-between align-items-center mt-3">
+        <div class="text-secondary small" id="jumlahHasil">0 barang ditemukan</div>
+        <div class="d-flex gap-2">
+          <button class="btn btn-outline-success" id="btnExportPdf"><i class="bi bi-file-earmark-pdf"></i> Cetak PDF</button>
+          <button class="btn btn-brand" id="btnTambahBarang"><i class="bi bi-plus-lg"></i> Tambah Barang</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card p-3">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead><tr><th>No</th><th>Nama Barang</th><th>Jenis</th><th>Satuan</th><th>Harga</th><th class="text-end">Aksi</th></tr></thead>
+          <tbody id="tabelBarangBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== BUAT QUOTATION ==================== -->
+  <section class="page-section" id="quotation-page">
+    <div class="card p-3 mb-3">
+      <div class="row g-2">
+        <div class="col-md-4">
+          <label class="form-label small mb-1">Nomor Quotation</label>
+          <input type="text" class="form-control" id="qNomor" value="Otomatis saat disimpan" disabled>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small mb-1">Tanggal</label>
+          <input type="date" class="form-control" id="qTanggal">
+        </div>
+        <div class="col-md-5">
+          <label class="form-label small mb-1">Tujuan / Customer</label>
+          <textarea class="form-control" id="qTujuan" rows="3" placeholder="Nama customer&#10;Alamat&#10;Telp: ..."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="card p-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="fw-semibold">Detail Barang</div>
+        <button class="btn btn-brand btn-sm" id="btnTambahKeQuotation"><i class="bi bi-plus-lg"></i> Tambah Barang</button>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead><tr><th>No</th><th>Nama Barang</th><th>Jenis</th><th>Satuan</th><th>Harga</th><th style="width:90px;">Qty</th><th>Subtotal</th><th></th></tr></thead>
+          <tbody id="tabelQuotationBody"><tr id="emptyQuotationRow"><td colspan="8" class="text-center text-secondary py-3">Belum ada barang ditambahkan.</td></tr></tbody>
+        </table>
+      </div>
+      <div class="text-end fw-bold fs-5 mt-2">Total: <span id="qTotal">Rp0</span></div>
+      <div class="d-flex justify-content-end gap-2 mt-3">
+        <button class="btn btn-outline-secondary" id="btnPreviewQuotation"><i class="bi bi-eye"></i> Preview</button>
+        <button class="btn btn-brand" id="btnSimpanQuotation"><i class="bi bi-save"></i> Simpan Quotation</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== PENGATURAN ==================== -->
+  <section class="page-section" id="pengaturan-page">
+    <div class="row g-3">
+      <div class="col-lg-7">
+        <div class="card p-3">
+          <div class="fw-semibold mb-3">Informasi Toko</div>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label small mb-1">Nama Toko</label>
+              <input type="text" class="form-control" id="pNamaToko" placeholder="Contoh: DJOERAGAN BUMBU">
+              <div class="qr-note mt-1">Kata pertama jadi logo teks besar, sisanya aksen emas di PDF quotation.</div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small mb-1">Nama Pemilik</label>
+              <input type="text" class="form-control" id="pNamaPemilik">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small mb-1">Jabatan Pemilik</label>
+              <input type="text" class="form-control" id="pJabatan">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small mb-1">Nomor Telepon</label>
+              <input type="text" class="form-control" id="pTelepon">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small mb-1">Email</label>
+              <input type="email" class="form-control" id="pEmail">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small mb-1">Alamat</label>
+              <input type="text" class="form-control" id="pAlamat">
+            </div>
+            <div class="col-12">
+              <label class="form-label small mb-1">Catatan pada Quotation (opsional)</label>
+              <textarea class="form-control" id="pCatatan" rows="2"></textarea>
+            </div>
+          </div>
+          <div class="text-end mt-3">
+            <button class="btn btn-brand" id="btnSimpanPengaturan"><i class="bi bi-save"></i> Simpan Pengaturan</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-5">
+        <div class="card p-3 mb-3">
+          <div class="fw-semibold mb-2">Logo Toko</div>
+          <div class="preview-box mb-2" id="previewLogo"><span class="text-secondary small">Belum ada logo</span></div>
+          <input type="file" class="form-control" id="inputLogo" accept="image/png,image/jpeg,image/webp">
+          <div class="qr-note mt-1">Format PNG/JPG/JPEG/WEBP, maks 3MB.</div>
+        </div>
+        <div class="card p-3">
+          <div class="fw-semibold mb-2">Tanda Tangan &amp; Stempel</div>
+          <div class="preview-box mb-2" id="previewTtdStempel"><span class="text-secondary small">Belum ada tanda tangan/stempel</span></div>
+          <input type="file" class="form-control" id="inputTtdStempel" accept="image/png,image/jpeg,image/webp">
+          <div class="qr-note mt-1">Upload satu gambar yang sudah berisi tanda tangan dan stempel. Format PNG/JPG/JPEG/WEBP, maks 3MB.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3 mt-1">
+      <div class="col-12">
+        <div class="card p-3">
+          <div class="fw-semibold mb-2">Kelola Jenis Barang</div>
+          <div class="d-flex gap-2 mb-3">
+            <input type="text" class="form-control" id="inputJenisBaru" placeholder="Nama jenis baru, contoh: Bumbu">
+            <button class="btn btn-brand text-nowrap" id="btnTambahJenis"><i class="bi bi-plus-lg"></i> Tambah</button>
+          </div>
+          <div id="daftarJenisBarang" class="d-flex flex-wrap gap-2"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- MODAL TAMBAH/EDIT BARANG -->
+<div class="modal fade" id="modalBarang" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalBarangTitle">Tambah Barang</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="fBarangId">
+        <div class="mb-2">
+          <label class="form-label small">Nama Barang</label>
+          <input type="text" class="form-control" id="fNamaBarang">
+        </div>
+        <div class="mb-2">
+          <label class="form-label small">Jenis</label>
+          <select class="form-select" id="fJenis"><option value="">Pilih Jenis</option></select>
+          <div class="qr-note mt-1">Belum ada jenisnya? Tambahkan dulu di menu Pengaturan.</div>
+        </div>
+        <div class="mb-2">
+          <label class="form-label small">Satuan</label>
+          <input type="text" class="form-control" id="fSatuan" placeholder="Contoh: pcs, kg, dus">
+        </div>
+        <div class="mb-2">
+          <label class="form-label small">Harga (Rp)</label>
+          <input type="number" min="0" class="form-control" id="fHarga">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+        <button class="btn btn-brand" id="btnSimpanBarang">Simpan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PILIH BARANG (untuk quotation) -->
+<div class="modal fade" id="modalPilihBarang" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pilih Barang</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-2 mb-2">
+          <div class="col-md-6">
+            <input type="text" class="form-control" id="modalSearch" placeholder="Cari nama barang...">
+          </div>
+          <div class="col-6 col-md-3">
+            <select class="form-select" id="modalFilterJenis"><option value="">Semua Jenis</option></select>
+          </div>
+          <div class="col-6 col-md-3">
+            <select class="form-select" id="modalFilterSatuan"><option value="">Semua Satuan</option></select>
+          </div>
+        </div>
+        <div class="table-responsive" style="max-height:45vh;">
+          <table class="table table-sm table-hover">
+            <thead><tr>
+              <th style="width:40px;">
+                <input type="checkbox" class="form-check-input" id="chkPilihSemua" title="Pilih semua" checked>
+              </th>
+              <th>Nama Barang</th><th>Jenis</th><th>Satuan</th><th>Harga</th>
+            </tr></thead>
+            <tbody id="modalBarangBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+        <button class="btn btn-brand" id="btnTambahkanKeQuotation">Tambahkan ke Quotation</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PREVIEW QUOTATION -->
+<div class="modal fade" id="modalPreviewQuotation" tabindex="-1">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Preview Quotation</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="quotationPreview"></div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Tutup</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL SUKSES SIMPAN QUOTATION -->
+<div class="modal fade" id="modalSuksesQuotation" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-body text-center p-4">
+        <i class="bi bi-check-circle-fill text-success" style="font-size:3rem;"></i>
+        <h5 class="mt-2">Quotation Berhasil Disimpan</h5>
+        <p class="text-secondary" id="suksesNomorQuotation"></p>
+        <div class="d-flex justify-content-center gap-2">
+          <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Tutup</button>
+          <button class="btn btn-brand" id="btnCetakPdfQuotation"><i class="bi bi-file-earmark-pdf"></i> Cetak PDF</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+<script>
+try {
+// ============================================================
+// STATE
+// ============================================================
+var STATE = {
+  barangList: [],
+  jenisList: [],
+  quotationItems: [],
+  lastQuotationId: null,
+  pilihSementara: {} // map id_barang -> item (dari modal pilih barang)
+};
+
+// ============================================================
+// UTIL
+// ============================================================
+function formatNumberID(num) {
+  num = Math.round(Number(num) || 0);
+  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+}
+
+function formatTanggalIndo(dateStr) {
+  if (!dateStr) return '';
+  var months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+  var str = String(dateStr).split('T')[0];
+  var parts = str.split('-');
+  if (parts.length === 3) {
+    var year = parts[0];
+    var monthIdx = parseInt(parts[1], 10) - 1;
+    var day = parseInt(parts[2], 10);
+    if (monthIdx >= 0 && monthIdx < 12) {
+      return day + ' ' + months[monthIdx] + ' ' + year;
+    }
+  }
+  return dateStr;
+}
+
+function formatRupiah(num) {
+  num = Number(num) || 0;
+  return 'Rp' + num.toLocaleString('id-ID', { maximumFractionDigits: 0 });
+}
+
+function formatRp(num) {
+  return 'Rp ' + formatNumberID(num);
+}
+function splitBrandName(namaToko) {
+  var name = String(namaToko || '').trim();
+  if (!name) return { primary: 'QUOTATION', secondary: '' };
+  var parts = name.split(/\s+/);
+  if (parts.length === 1) return { primary: parts[0].toUpperCase(), secondary: '' };
+  return { primary: parts[0].toUpperCase(), secondary: parts.slice(1).join(' ').toUpperCase() };
+}
+function buildQuotationNotesHtml(pengaturan) {
+  pengaturan = pengaturan || {};
+  if (pengaturan.catatan_quotation && String(pengaturan.catatan_quotation).trim()) {
+    var cLines = String(pengaturan.catatan_quotation).replace(/\r/g, '').trim().split('\n');
+    var html = '<ol class="notes-list">';
+    cLines.forEach(function (line) {
+      if (line.trim()) html += '<li>' + escapeHtml(line.trim()) + '</li>';
+    });
+    html += '</ol>';
+    return html;
+  }
+  return '<ol class="notes-list">' +
+    '<li><b>Pembayaran:</b> 50% di muka, 50% setelah barang diterima.</li>' +
+    '<li><b>Pengiriman:</b> Barang akan dikirim dalam waktu 7 hari kerja setelah menerima pembayaran di muka.</li>' +
+    '<li><b>Garansi:</b> 1 tahun untuk semua barang, kecuali ditentukan lain.</li>' +
+    '<li><b>Masa Berlaku Penawaran:</b> Penawaran ini berlaku selama 30 hari dari tanggal penawaran.</li>' +
+    '</ol>';
+}
+function buildQuotationDocumentHtml(opts) {
+  opts = opts || {};
+  var p = opts.pengaturan || {};
+  var items = opts.items || [];
+  var tujuan = opts.tujuan || '';
+  var nomor = opts.nomor || 'Akan dibuat otomatis';
+  var tanggal = opts.tanggal || '';
+
+  var brand = splitBrandName(p.nama_toko);
+  var brandHtml = '<div class="brand-logo"><div class="brand-primary">' + escapeHtml(brand.primary) + '</div>';
+  if (brand.secondary) brandHtml += '<div class="brand-secondary">' + escapeHtml(brand.secondary) + '</div>';
+  brandHtml += '</div>';
+
+  var tokoInfoParts = [];
+  if (p.alamat) tokoInfoParts.push(escapeHtml(p.alamat));
+  var telpEmail = [];
+  if (p.nomor_telepon) telpEmail.push('Telp: ' + escapeHtml(p.nomor_telepon));
+  if (p.email) telpEmail.push(escapeHtml(p.email));
+  if (telpEmail.length) tokoInfoParts.push(telpEmail.join(' | '));
+  var tokoInfoHtml = tokoInfoParts.join('<br>');
+
+  var tujuanLines = String(tujuan).replace(/\r/g, '').trim().split('\n');
+  var customerName = escapeHtml(tujuanLines[0] || '-');
+  var extra = [];
+  for (var t = 1; t < tujuanLines.length; t++) {
+    if (tujuanLines[t].trim()) extra.push(escapeHtml(tujuanLines[t]));
+  }
+  var customerExtraHtml = extra.length ? '<div class="customer-extra">' + extra.join('<br>') + '</div>' : '';
+
+  var subtotal = 0;
+  var rows = items.map(function (it, idx) {
+    var itemSubtotal = Number(it.harga) * Number(it.qty);
+    subtotal += itemSubtotal;
+    return '<tr>' +
+      '<td>' + (idx + 1) + '</td>' +
+      '<td><div class="item-name">' + escapeHtml(it.nama_barang) + '</div></td>' +
+      '<td style="text-align:center;">' + escapeHtml(it.qty) + '</td>' +
+      '<td style="text-align:right;">' + formatRp(it.harga) + '</td>' +
+      '<td style="text-align:right;">' + formatRp(itemSubtotal) + '</td>' +
+      '</tr>';
+  }).join('');
+  var ttdImg = p.ttd_stempel_data_url ? '<img src="' + p.ttd_stempel_data_url + '" class="signature-image">' : '';
+  var watermarkHtml = p.logo_data_url ? '<div class="watermark-container"><img src="' + p.logo_data_url + '" class="watermark-logo" alt=""></div>' : '';
+  var footerParts = [];
+  if (p.alamat) footerParts.push(escapeHtml(p.alamat));
+  if (p.nomor_telepon) footerParts.push('Telp: ' + escapeHtml(p.nomor_telepon));
+  var footerText = footerParts.length ? footerParts.join('  |  ') : escapeHtml(p.nama_toko || '');
+
+  return '<div class="quotation-paper">' +
+    '<div class="header">' +
+      '<div class="header-left">' + brandHtml + '<p class="toko-info">' + tokoInfoHtml + '</p></div>' +
+      '<div class="header-right"><div class="invoice-title">QUOTATION</div></div>' +
+    '</div>' +
+    '<div class="row-info">' +
+      '<div class="col-customer">' +
+        '<div class="label-title">Quotation to:</div>' +
+        '<div class="customer-name">' + customerName + '</div>' +
+        customerExtraHtml +
+      '</div>' +
+      '<div class="col-meta">' +
+        '<table class="meta-table">' +
+          '<tr><td class="meta-label">Quotation#</td><td class="meta-val">' + escapeHtml(nomor) + '</td></tr>' +
+          '<tr><td class="meta-label">Date</td><td class="meta-val">' + escapeHtml(formatTanggalIndo(tanggal)) + '</td></tr>' +
+        '</table>' +
+      '</div>' +
+    '</div>' +
+    '<table class="items">' +
+      '<thead><tr>' +
+        '<th width="8%">No</th>' +
+        '<th width="42%">Deskripsi Barang</th>' +
+        '<th width="12%" style="text-align:center;">Qty</th>' +
+        '<th width="18%" style="text-align:right;">Harga Satuan</th>' +
+        '<th width="20%" style="text-align:right;">Total</th>' +
+      '</tr></thead>' +
+      '<tbody>' + rows + '</tbody>' +
+    '</table>' +
+    '<div class="row-bottom">' +
+      '<div class="col-notes">' +
+        '<div class="payment-block">' +
+          '<strong>Syarat &amp; Ketentuan</strong>' +
+          '<div class="payment-content">' + buildQuotationNotesHtml(p) + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="col-summary">' +
+        '<table class="summary-table">' +
+          '<tr><td class="sum-label">Subtotal</td><td class="sum-val">' + formatRp(subtotal) + '</td></tr>' +
+          '<tr class="grand-total-row"><td class="sum-label">Total</td><td class="sum-val">' + formatRp(subtotal) + '</td></tr>' +
+        '</table>' +
+      '</div>' +
+    '</div>' +
+    '<div class="signature-section">' +
+      '<div class="thanks-note">Thank you for your business!</div>' +
+      '<div class="signature-group">' +
+        '<div class="signature-box">' +
+          ttdImg +
+          '<div class="owner-name">' + escapeHtml(p.nama_pemilik || '') + '</div>' +
+          '<div class="signature-title">' + escapeHtml(p.jabatan_pemilik || '') + '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+    watermarkHtml +
+    '<div class="footer-banner">' + footerText + '</div>' +
+  '</div>';
+}
+
+function escapeHtml(str) {
+  var div = document.createElement('div');
+  div.innerText = (str === undefined || str === null) ? '' : str;
+  return div.innerHTML;
+}
+function showLoading(text) {
+  document.getElementById('loadingText').innerText = text || 'Memuat...';
+  document.getElementById('loadingOverlay').style.display = 'flex';
+}
+function hideLoading() {
+  document.getElementById('loadingOverlay').style.display = 'none';
+}
+function showToast(message, type) {
+  type = type || 'success';
+  var bg = type === 'success' ? 'text-bg-success' : (type === 'error' ? 'text-bg-danger' : 'text-bg-secondary');
+  var id = 'toast-' + Date.now();
+  var html = '<div id="' + id + '" class="toast ' + bg + '" role="alert"><div class="d-flex">' +
+    '<div class="toast-body">' + escapeHtml(message) + '</div>' +
+    '<button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>' +
+    '</div></div>';
+  document.getElementById('toastContainer').insertAdjacentHTML('beforeend', html);
+  var el = document.getElementById(id);
+  var toast = new bootstrap.Toast(el, { delay: 3500 });
+  toast.show();
+  el.addEventListener('hidden.bs.toast', function () { el.remove(); });
+}
+function runServer(fnName, args, loadingMsg) {
+  return new Promise(function (resolve, reject) {
+    if (loadingMsg) showLoading(loadingMsg);
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (loadingMsg) hideLoading();
+        if (res === null || res === undefined) {
+          var err = new Error('Server tidak mengembalikan data dari ' + fnName + '(). Kemungkinan Code.gs belum ter-deploy versi terbaru, atau ada fungsi duplikat di Code.gs.');
+          console.error(err);
+          showToast(err.message, 'error');
+          reject(err);
+          return;
+        }
+        resolve(res);
+      })
+      .withFailureHandler(function (err) {
+        if (loadingMsg) hideLoading();
+        console.error(err);
+        showToast('Terjadi kesalahan: ' + (err && err.message ? err.message : 'silakan coba lagi.'), 'error');
+        reject(err);
+      })[fnName].apply(null, args || []);
+  });
+}
+function base64ToBlobUrl(base64, mime) {
+  var byteChars = atob(base64);
+  var byteNumbers = new Array(byteChars.length);
+  for (var i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
+  var byteArray = new Uint8Array(byteNumbers);
+  var blob = new Blob([byteArray], { type: mime });
+  return URL.createObjectURL(blob);
+}
+function fileToBase64(file) {
+  return new Promise(function (resolve, reject) {
+    var reader = new FileReader();
+    reader.onload = function () { resolve(reader.result.split(',')[1]); };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// ============================================================
+// NAVIGASI
+// ============================================================
+document.querySelectorAll('.sidebar .nav-link').forEach(function (link) {
+  link.addEventListener('click', function () {
+    document.querySelectorAll('.sidebar .nav-link').forEach(function (l) { l.classList.remove('active'); });
+    this.classList.add('active');
+    document.querySelectorAll('.page-section').forEach(function (s) { s.classList.remove('active'); });
+    document.getElementById(this.dataset.page).classList.add('active');
+    document.getElementById('pageTitle').innerText = this.innerText.trim();
+    document.getElementById('sidebar').classList.remove('show');
+    if (this.dataset.page === 'dashboard-page') loadDashboard();
+    if (this.dataset.page === 'barang-page') loadBarangTable();
+    if (this.dataset.page === 'pengaturan-page') loadPengaturan();
+  });
+});
+document.getElementById('btnToggleSidebar').addEventListener('click', function () {
+  document.getElementById('sidebar').classList.toggle('show');
+});
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+function loadDashboard() {
+  runServer('getDashboardData', [], 'Memuat data...').then(function (res) {
+    if (!res.success) return showToast(res.message, 'error');
+    document.getElementById('statTotalBarang').innerText = res.totalBarang;
+    document.getElementById('statTotalJenis').innerText = res.totalJenis;
+    document.getElementById('statTotalQuotation').innerText = res.totalQuotation;
+    document.getElementById('statQuotationBulanIni').innerText = res.quotationBulanIni;
+  });
+}
+
+// ============================================================
+// DATABASE BARANG
+// ============================================================
+function currentFilters() {
+  return {
+    search: document.getElementById('filterSearch').value.trim(),
+    jenis: document.getElementById('filterJenis').value,
+    satuan: document.getElementById('filterSatuan').value
+  };
+}
+
+function loadBarangTable() {
+  runServer('getBarangList', [currentFilters()], 'Memuat data barang...').then(function (res) {
+    if (!res.success) return showToast(res.message, 'error');
+    STATE.barangList = res.data;
+    renderBarangTable(res.data);
+    populateSatuanFilter(res.data);
+  });
+  loadJenisList();
+}
+
+function loadJenisList() {
+  runServer('getJenisList', []).then(function (res) {
+    if (!res.success) return;
+    STATE.jenisList = res.data;
+
+    var sel = document.getElementById('filterJenis');
+    var current = sel.value;
+    sel.innerHTML = '<option value="">Semua Jenis</option>' + res.data.map(function (j) {
+      return '<option value="' + escapeHtml(j) + '">' + escapeHtml(j) + '</option>';
+    }).join('');
+    sel.value = current;
+
+    var fJenisSel = document.getElementById('fJenis');
+    var currentF = fJenisSel.value;
+    fJenisSel.innerHTML = '<option value="">Pilih Jenis</option>' + res.data.map(function (j) {
+      return '<option value="' + escapeHtml(j) + '">' + escapeHtml(j) + '</option>';
+    }).join('');
+    fJenisSel.value = currentF;
+
+    renderJenisBarangList();
+  });
+}
+
+function renderJenisBarangList() {
+  var wrap = document.getElementById('daftarJenisBarang');
+  if (!wrap) return;
+  if (!STATE.jenisList.length) {
+    wrap.innerHTML = '<span class="text-secondary small">Belum ada jenis barang. Tambahkan di atas.</span>';
+    return;
+  }
+  wrap.innerHTML = STATE.jenisList.map(function (j) {
+    return '<span class="badge badge-jenis d-inline-flex align-items-center gap-2 p-2">' + escapeHtml(j) +
+      '<i class="bi bi-x-circle btn-hapus-jenis" role="button" data-jenis="' + escapeHtml(j) + '"></i></span>';
+  }).join('');
+  wrap.querySelectorAll('.btn-hapus-jenis').forEach(function (el) {
+    el.addEventListener('click', function () { hapusJenisBarang(this.dataset.jenis); });
+  });
+}
+
+function hapusJenisBarang(nama) {
+  if (!confirm('Hapus jenis "' + nama + '"?')) return;
+  runServer('deleteJenisBarang', [nama], 'Menghapus...').then(function (res) {
+    if (!res.success) return showToast(res.message, 'error');
+    showToast(res.message, 'success');
+    loadJenisList();
+  });
+}
+
+document.getElementById('btnTambahJenis').addEventListener('click', function () {
+  var nama = document.getElementById('inputJenisBaru').value.trim();
+  if (!nama) return showToast('Nama jenis wajib diisi.', 'error');
+  runServer('addJenisBarang', [nama], 'Menyimpan...').then(function (res) {
+    if (!res.success) return showToast(res.message, 'error');
+    showToast(res.message, 'success');
+    document.getElementById('inputJenisBaru').value = '';
+    loadJenisList();
+  });
+});
+
+function populateSatuanFilter(list) {
+  var set = {};
+  list.forEach(function (b) { if (b.satuan) set[b.satuan] = true; });
+  var sel = document.getElementById('filterSatuan');
+  var current = sel.value;
+  sel.innerHTML = '<option value="">Semua Satuan</option>' + Object.keys(set).sort().map(function (s) {
+    return '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>';
+  }).join('');
+  sel.value = current;
+}
+
+function renderBarangTable(list) {
+  var tbody = document.getElementById('tabelBarangBody');
+  document.getElementById('jumlahHasil').innerText = list.length + ' barang ditemukan';
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-secondary py-4">Belum ada data barang.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.map(function (b, i) {
+    return '<tr>' +
+      '<td>' + (i + 1) + '</td>' +
+      '<td>' + escapeHtml(b.nama_barang) + '</td>' +
+      '<td><span class="badge badge-jenis">' + escapeHtml(b.jenis) + '</span></td>' +
+      '<td>' + escapeHtml(b.satuan) + '</td>' +
+      '<td>' + formatRupiah(b.harga) + '</td>' +
+      '<td class="text-end">' +
+      '<button class="btn btn-sm btn-outline-primary me-1 btn-edit-barang" data-id="' + escapeHtml(b.id_barang) + '"><i class="bi bi-pencil"></i></button>' +
+      '<button class="btn btn-sm btn-outline-danger btn-hapus-barang" data-id="' + escapeHtml(b.id_barang) + '"><i class="bi bi-trash"></i></button>' +
+      '</td></tr>';
+  }).join('');
+
+  tbody.querySelectorAll('.btn-edit-barang').forEach(function (btn) {
+    btn.addEventListener('click', function () { openEditBarang(btn.dataset.id); });
+  });
+  tbody.querySelectorAll('.btn-hapus-barang').forEach(function (btn) {
+    btn.addEventListener('click', function () { hapusBarang(btn.dataset.id); });
+  });
+}
+
+['filterSearch'].forEach(function (id) {
+  document.getElementById(id).addEventListener('input', debounce(loadBarangTable, 300));
+});
+document.getElementById('filterJenis').addEventListener('change', loadBarangTable);
+document.getElementById('filterSatuan').addEventListener('change', loadBarangTable);
+document.getElementById('btnResetFilter').addEventListener('click', function () {
+  document.getElementById('filterSearch').value = '';
+  document.getElementById('filterJenis').value = '';
+  document.getElementById('filterSatuan').value = '';
+  loadBarangTable();
+});
+
+function debounce(fn, delay) {
+  var timer;
+  return function () {
+    clearTimeout(timer);
+    var args = arguments;
+    timer = setTimeout(function () { fn.apply(null, args); }, delay);
+  };
+}
+
+document.getElementById('btnTambahBarang').addEventListener('click', function () {
+  document.getElementById('modalBarangTitle').innerText = 'Tambah Barang';
+  document.getElementById('fBarangId').value = '';
+  document.getElementById('fNamaBarang').value = '';
+  document.getElementById('fJenis').value = '';
+  document.getElementById('fSatuan').value = '';
+  document.getElementById('fHarga').value = '';
+  new bootstrap.Modal(document.getElementById('modalBarang')).show();
+});
+
+function openEditBarang(id) {
+  var b = STATE.barangList.find(function (x) { return x.id_barang === id; });
+  if (!b) return;
+  document.getElementById('modalBarangTitle').innerText = 'Edit Barang';
+  document.getElementById('fBarangId').value = b.id_barang;
+  document.getElementById('fNamaBarang').value = b.nama_barang;
+  document.getElementById('fJenis').value = b.jenis;
+  document.getElementById('fSatuan').value = b.satuan;
+  document.getElementById('fHarga').value = b.harga;
+  new bootstrap.Modal(document.getElementById('modalBarang')).show();
+}
+
+document.getElementById('btnSimpanBarang').addEventListener('click', function () {
+  var id = document.getElementById('fBarangId').value;
+  var payload = {
+    nama_barang: document.getElementById('fNamaBarang').value.trim(),
+    jenis: document.getElementById('fJenis').value.trim(),
+    satuan: document.getElementById('fSatuan').value.trim(),
+    harga: document.getElementById('fHarga').value
+  };
+  if (!payload.nama_barang || !payload.jenis || !payload.satuan || payload.harga === '') {
+    return showToast('Semua field wajib diisi.', 'error');
+  }
+  var fn = id ? 'updateBarang' : 'saveBarang';
+  if (id) payload.id_barang = id;
+  runServer(fn, [payload], 'Menyimpan...').then(function (res) {
+    if (!res.success) return showToast(res.message, 'error');
+    showToast(res.message, 'success');
+    bootstrap.Modal.getInstance(document.getElementById('modalBarang')).hide();
+    loadBarangTable();
+  });
+});
+
+function hapusBarang(id) {
+  if (!confirm('Apakah Anda yakin ingin menghapus barang ini?')) return;
+  runServer('deleteBarang', [id], 'Menghapus...').then(function (res) {
+    if (!res.success) return showToast(res.message, 'error');
+    showToast(res.message, 'success');
+    loadBarangTable();
+  });
+}
+
+document.getElementById('btnExportPdf').addEventListener('click', function () {
+  runServer('generateBarangPDF', [currentFilters()], 'Menyiapkan PDF...').then(function (res) {
+    if (!res.success) return showToast(res.message, 'error');
+    var url = base64ToBlobUrl(res.base64, 'application/pdf');
+    window.open(url, '_blank');
+  });
+});
+
+// ============================================================
+// BUAT QUOTATION
+// ============================================================
+document.getElementById('qTanggal').valueAsDate = new Date();
+
+function renderQuotationTable() {
+  var tbody = document.getElementById('tabelQuotationBody');
+  if (!STATE.quotationItems.length) {
+    tbody.innerHTML = '<tr id="emptyQuotationRow"><td colspan="8" class="text-center text-secondary py-3">Belum ada barang ditambahkan.</td></tr>';
+    document.getElementById('qTotal').innerText = formatRupiah(0);
+    return;
+  }
+  var total = 0;
+  tbody.innerHTML = STATE.quotationItems.map(function (it, i) {
+    var subtotal = Number(it.harga) * Number(it.qty || 0);
+    total += subtotal;
+    return '<tr>' +
+      '<td>' + (i + 1) + '</td>' +
+      '<td>' + escapeHtml(it.nama_barang) + '</td>' +
+      '<td>' + escapeHtml(it.jenis) + '</td>' +
+      '<td>' + escapeHtml(it.satuan) + '</td>' +
+      '<td>' + formatRupiah(it.harga) + '</td>' +
+      '<td><input type="number" min="1" class="form-control form-control-sm qty-input" data-index="' + i + '" value="' + it.qty + '"></td>' +
+      '<td class="item-subtotal">' + formatRupiah(subtotal) + '</td>' +
+      '<td><button class="btn btn-sm btn-outline-danger btn-remove-item" data-index="' + i + '"><i class="bi bi-x-lg"></i></button></td>' +
+      '</tr>';
+  }).join('');
+  document.getElementById('qTotal').innerText = formatRupiah(total);
+
+  tbody.querySelectorAll('.qty-input').forEach(function (input) {
+    input.addEventListener('input', function () {
+      var idx = Number(this.dataset.index);
+      var raw = this.value;
+      var val = Number(raw);
+      STATE.quotationItems[idx].qty = (raw !== '' && !isNaN(val) && val > 0) ? val : raw;
+      updateQuotationTotals();
+    });
+    input.addEventListener('blur', function () {
+      var idx = Number(this.dataset.index);
+      var val = Number(this.value);
+      STATE.quotationItems[idx].qty = val > 0 ? val : 1;
+      this.value = STATE.quotationItems[idx].qty;
+      updateQuotationTotals();
+    });
+  });
+  tbody.querySelectorAll('.btn-remove-item').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      STATE.quotationItems.splice(Number(this.dataset.index), 1);
+      renderQuotationTable();
+    });
+  });
+}
+
+function updateQuotationTotals() {
+  var total = 0;
+  document.querySelectorAll('#tabelQuotationBody tr').forEach(function (tr, i) {
+    var it = STATE.quotationItems[i];
+    if (!it) return;
+    var qty = Number(it.qty);
+    var subtotal = Number(it.harga) * (qty > 0 ? qty : 0);
+    total += subtotal;
+    var cell = tr.querySelector('.item-subtotal');
+    if (cell) cell.innerText = formatRupiah(subtotal);
+  });
+  document.getElementById('qTotal').innerText = formatRupiah(total);
+}
+
+document.getElementById('btnTambahKeQuotation').addEventListener('click', openModalPilihBarang);
+
+function syncChkPilihSemua() {
+  var header = document.getElementById('chkPilihSemua');
+  var boxes = document.querySelectorAll('#modalBarangBody .chk-barang');
+  if (!header) return;
+  if (!boxes.length) {
+    header.checked = false;
+    header.indeterminate = false;
+    return;
+  }
+  var checkedCount = 0;
+  boxes.forEach(function (c) { if (c.checked) checkedCount++; });
+  header.checked = checkedCount === boxes.length;
+  header.indeterminate = checkedCount > 0 && checkedCount < boxes.length;
+}
+
+function openModalPilihBarang() {
+  STATE.pilihSementara = {};
+  STATE.modalBarangList = [];
+  document.getElementById('modalSearch').value = '';
+  document.getElementById('modalFilterJenis').value = '';
+  document.getElementById('modalFilterSatuan').value = '';
+  var jenisSel = document.getElementById('modalFilterJenis');
+  jenisSel.innerHTML = '<option value="">Semua Jenis</option>' + STATE.jenisList.map(function (j) {
+    return '<option value="' + escapeHtml(j) + '">' + escapeHtml(j) + '</option>';
+  }).join('');
+  var header = document.getElementById('chkPilihSemua');
+  if (header) {
+    header.checked = true;
+    header.indeterminate = false;
+  }
+  loadModalBarangList();
+  new bootstrap.Modal(document.getElementById('modalPilihBarang')).show();
+}
+
+function loadModalBarangList() {
+  var filters = {
+    search: document.getElementById('modalSearch').value.trim(),
+    jenis: document.getElementById('modalFilterJenis').value,
+    satuan: document.getElementById('modalFilterSatuan').value
+  };
+  runServer('getBarangList', [filters]).then(function (res) {
+    if (!res.success) return showToast(res.message, 'error');
+    STATE.modalBarangList = res.data || [];
+    var satuanSet = {};
+    STATE.modalBarangList.forEach(function (b) { if (b.satuan) satuanSet[b.satuan] = true; });
+    var satuanSel = document.getElementById('modalFilterSatuan');
+    var currentSatuan = satuanSel.value;
+    satuanSel.innerHTML = '<option value="">Semua Satuan</option>' + Object.keys(satuanSet).sort().map(function (s) {
+      return '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>';
+    }).join('');
+    satuanSel.value = currentSatuan;
+
+    var tbody = document.getElementById('modalBarangBody');
+    STATE.pilihSementara = {};
+    if (!STATE.modalBarangList.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center text-secondary py-3">Tidak ada barang.</td></tr>';
+      syncChkPilihSemua();
+      return;
+    }
+    STATE.modalBarangList.forEach(function (b) {
+      STATE.pilihSementara[b.id_barang] = b;
+    });
+    tbody.innerHTML = STATE.modalBarangList.map(function (b) {
+      return '<tr>' +
+        '<td><input type="checkbox" class="form-check-input chk-barang" data-id="' + escapeHtml(b.id_barang) + '" checked></td>' +
+        '<td>' + escapeHtml(b.nama_barang) + '</td>' +
+        '<td>' + escapeHtml(b.jenis) + '</td>' +
+        '<td>' + escapeHtml(b.satuan) + '</td>' +
+        '<td>' + formatRupiah(b.harga) + '</td>' +
+        '</tr>';
+    }).join('');
+    tbody.querySelectorAll('.chk-barang').forEach(function (chk) {
+      chk.addEventListener('change', function () {
+        var id = this.dataset.id;
+        var b = STATE.modalBarangList.find(function (x) { return x.id_barang === id; });
+        if (this.checked && b) STATE.pilihSementara[id] = b;
+        else delete STATE.pilihSementara[id];
+        syncChkPilihSemua();
+      });
+    });
+    syncChkPilihSemua();
+  });
+}
+document.getElementById('modalSearch').addEventListener('input', debounce(loadModalBarangList, 300));
+document.getElementById('modalFilterJenis').addEventListener('change', loadModalBarangList);
+document.getElementById('modalFilterSatuan').addEventListener('change', loadModalBarangList);
+document.getElementById('chkPilihSemua').addEventListener('change', function () {
+  var checked = this.checked;
+  this.indeterminate = false;
+  document.querySelectorAll('#modalBarangBody .chk-barang').forEach(function (chk) {
+    chk.checked = checked;
+    var id = chk.dataset.id;
+    if (checked) {
+      var b = STATE.modalBarangList.find(function (x) { return x.id_barang === id; });
+      if (b) STATE.pilihSementara[id] = b;
+    } else {
+      delete STATE.pilihSementara[id];
+    }
+  });
+});
+
+document.getElementById('btnTambahkanKeQuotation').addEventListener('click', function () {
+  if (!Object.keys(STATE.pilihSementara).length) return showToast('Pilih minimal satu barang.', 'error');
+  Object.keys(STATE.pilihSementara).forEach(function (id) {
+    var existing = STATE.quotationItems.find(function (it) { return it.id_barang === id; });
+    if (existing) return;
+    var b = STATE.pilihSementara[id];
+    STATE.quotationItems.push({ id_barang: b.id_barang, nama_barang: b.nama_barang, jenis: b.jenis, satuan: b.satuan, harga: b.harga, qty: 1 });
+  });
+  renderQuotationTable();
+  bootstrap.Modal.getInstance(document.getElementById('modalPilihBarang')).hide();
+});
+
+function buildQuotationPayload() {
+  return {
+    tanggal: document.getElementById('qTanggal').value,
+    tujuan: document.getElementById('qTujuan').value.trim(),
+    items: STATE.quotationItems
+  };
+}
+
+document.getElementById('btnPreviewQuotation').addEventListener('click', function () {
+  var payload = buildQuotationPayload();
+  if (!payload.tujuan) return showToast('Tujuan wajib diisi.', 'error');
+  if (!payload.items.length) return showToast('Tambahkan minimal satu barang.', 'error');
+
+  runServer('getPengaturan', []).then(function (res) {
+    var p = res.success ? res.data : {};
+    var html = buildQuotationDocumentHtml({
+      pengaturan: p,
+      items: payload.items,
+      tujuan: payload.tujuan,
+      tanggal: payload.tanggal,
+      nomor: 'Akan dibuat otomatis'
+    });
+    document.getElementById('quotationPreview').innerHTML = html;
+    new bootstrap.Modal(document.getElementById('modalPreviewQuotation')).show();
+  });
+});
+
+document.getElementById('btnSimpanQuotation').addEventListener('click', function () {
+  var payload = buildQuotationPayload();
+  if (!payload.tujuan) return showToast('Tujuan wajib diisi.', 'error');
+  if (!payload.items.length) return showToast('Tambahkan minimal satu barang.', 'error');
+  for (var i = 0; i < payload.items.length; i++) {
+    if (!(Number(payload.items[i].qty) > 0)) return showToast('Qty harus lebih dari 0.', 'error');
+  }
+  runServer('saveQuotation', [payload], 'Menyimpan quotation...').then(function (res) {
+    if (!res.success) return showToast(res.message, 'error');
+    STATE.lastQuotationId = res.id_quotation;
+    document.getElementById('suksesNomorQuotation').innerText = 'Nomor Quotation: ' + res.nomor_quotation;
+    new bootstrap.Modal(document.getElementById('modalSuksesQuotation')).show();
+    // reset form
+    STATE.quotationItems = [];
+    renderQuotationTable();
+    document.getElementById('qTujuan').value = '';
+    document.getElementById('qTanggal').valueAsDate = new Date();
+    loadDashboard();
+  });
+});
+
+document.getElementById('btnCetakPdfQuotation').addEventListener('click', function () {
+  if (!STATE.lastQuotationId) return;
+  runServer('generateQuotationPDF', [STATE.lastQuotationId], 'Menyiapkan PDF...').then(function (res) {
+    if (!res.success) return showToast(res.message, 'error');
+    var url = base64ToBlobUrl(res.base64, 'application/pdf');
+    window.open(url, '_blank');
+  });
+});
+
+// ============================================================
+// PENGATURAN
+// ============================================================
+function loadPengaturan() {
+  runServer('getPengaturan', [], 'Memuat pengaturan...').then(function (res) {
+    if (!res.success) return showToast(res.message, 'error');
+    var d = res.data;
+    document.getElementById('pNamaToko').value = d.nama_toko;
+    document.getElementById('pNamaPemilik').value = d.nama_pemilik;
+    document.getElementById('pJabatan').value = d.jabatan_pemilik;
+    document.getElementById('pTelepon').value = d.nomor_telepon;
+    document.getElementById('pEmail').value = d.email;
+    document.getElementById('pAlamat').value = d.alamat;
+    document.getElementById('pCatatan').value = d.catatan_quotation;
+
+    setPreview('previewLogo', d.logo_data_url, 'Belum ada logo');
+    setPreview('previewTtdStempel', d.ttd_stempel_data_url, 'Belum ada tanda tangan/stempel');
+  });
+}
+function setPreview(elId, dataUrl, placeholder) {
+  var el = document.getElementById(elId);
+  el.innerHTML = dataUrl ? '<img src="' + dataUrl + '">' : '<span class="text-secondary small">' + placeholder + '</span>';
+}
+
+document.getElementById('btnSimpanPengaturan').addEventListener('click', function () {
+  var payload = {
+    nama_toko: document.getElementById('pNamaToko').value.trim(),
+    nama_pemilik: document.getElementById('pNamaPemilik').value.trim(),
+    jabatan_pemilik: document.getElementById('pJabatan').value.trim(),
+    nomor_telepon: document.getElementById('pTelepon').value.trim(),
+    email: document.getElementById('pEmail').value.trim(),
+    alamat: document.getElementById('pAlamat').value.trim(),
+    catatan_quotation: document.getElementById('pCatatan').value.trim()
+  };
+  runServer('savePengaturan', [payload], 'Menyimpan pengaturan...').then(function (res) {
+    if (!res.success) return showToast(res.message, 'error');
+    showToast(res.message, 'success');
+  });
+});
+
+function setupUpload(inputId, previewId, assetType) {
+  document.getElementById(inputId).addEventListener('change', function (e) {
+    var file = e.target.files[0];
+    if (!file) return;
+    var allowed = ['image/png', 'image/jpeg', 'image/webp'];
+    if (allowed.indexOf(file.type) === -1) {
+      showToast('Format file tidak didukung. Gunakan PNG, JPG, JPEG, atau WEBP.', 'error');
+      e.target.value = '';
+      return;
+    }
+    if (file.size > 3 * 1024 * 1024) {
+      showToast('Ukuran file terlalu besar. Maksimal 3MB.', 'error');
+      e.target.value = '';
+      return;
+    }
+    fileToBase64(file).then(function (base64) {
+      return runServer('uploadAsset', [base64, file.name, file.type, assetType], 'Mengupload...');
+    }).then(function (res) {
+      if (!res.success) return showToast(res.message, 'error');
+      showToast(res.message, 'success');
+      setPreview(previewId, res.dataUrl, '');
+      e.target.value = '';
+    });
+  });
+}
+setupUpload('inputLogo', 'previewLogo', 'logo');
+setupUpload('inputTtdStempel', 'previewTtdStempel', 'ttdstempel');
+
+// ============================================================
+// INIT
+// ============================================================
+window.addEventListener('load', function () {
+  loadDashboard();
+  loadJenisList();
+});
+} catch (initError) {
+  console.error(initError);
+  alert('Terjadi kesalahan saat memuat aplikasi:\n' + initError.message + '\n\nScreenshot pesan ini dan kirim ke developer.');
+}
+</script>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a345b7044a345844',t:'MTc4ODI4MDgwNw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
