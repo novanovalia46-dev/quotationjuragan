@@ -1,9 +1,10 @@
 <!DOCTYPE html>
+<!-- Frontend Vercel: data tetap di Google Sheets via Apps Script. Push folder vercel-app/ ke GitHub. -->
 <html lang="id">
 <head>
-<base target="_top">
 <meta charset="utf-8">
 <title>Database Barang & Quotation</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%232f5d50' width='32' height='32' rx='6'/%3E%3C/svg%3E">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.1/font/bootstrap-icons.min.css" rel="stylesheet">
 <style>
@@ -647,27 +648,59 @@ function showToast(message, type) {
   toast.show();
   el.addEventListener('hidden.bs.toast', function () { el.remove(); });
 }
+var APP_CONFIG = {
+  apiUrl: '/api/gas',
+  apiToken: ''
+};
+
+function finishServer_(resolve, reject, fnName, loadingMsg, res) {
+  if (loadingMsg) hideLoading();
+  if (res === null || res === undefined) {
+    var err = new Error('Server tidak mengembalikan data dari ' + fnName + '().');
+    console.error(err);
+    showToast(err.message, 'error');
+    reject(err);
+    return;
+  }
+  resolve(res);
+}
+
+function failServer_(reject, loadingMsg, err) {
+  if (loadingMsg) hideLoading();
+  console.error(err);
+  showToast('Terjadi kesalahan: ' + (err && err.message ? err.message : 'silakan coba lagi.'), 'error');
+  reject(err);
+}
+
 function runServer(fnName, args, loadingMsg) {
   return new Promise(function (resolve, reject) {
     if (loadingMsg) showLoading(loadingMsg);
-    google.script.run
-      .withSuccessHandler(function (res) {
-        if (loadingMsg) hideLoading();
-        if (res === null || res === undefined) {
-          var err = new Error('Server tidak mengembalikan data dari ' + fnName + '(). Kemungkinan Code.gs belum ter-deploy versi terbaru, atau ada fungsi duplikat di Code.gs.');
-          console.error(err);
-          showToast(err.message, 'error');
-          reject(err);
-          return;
-        }
-        resolve(res);
+    args = args || [];
+
+    // Apps Script (google.script.run) atau Vercel (fetch /api/gas)
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler(function (res) { finishServer_(resolve, reject, fnName, loadingMsg, res); })
+        .withFailureHandler(function (err) { failServer_(reject, loadingMsg, err); })[fnName].apply(null, args);
+      return;
+    }
+
+    fetch(APP_CONFIG.apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: fnName, args: args, token: APP_CONFIG.apiToken || undefined })
+    })
+      .then(function (r) {
+        return r.text().then(function (text) {
+          var data;
+          try { data = JSON.parse(text); }
+          catch (e) { throw new Error('Respons server bukan JSON. Cek GAS_WEB_APP_URL di Vercel dan deploy Apps Script (Anyone).'); }
+          if (!r.ok) throw new Error((data && data.message) || ('HTTP ' + r.status));
+          return data;
+        });
       })
-      .withFailureHandler(function (err) {
-        if (loadingMsg) hideLoading();
-        console.error(err);
-        showToast('Terjadi kesalahan: ' + (err && err.message ? err.message : 'silakan coba lagi.'), 'error');
-        reject(err);
-      })[fnName].apply(null, args || []);
+      .then(function (res) { finishServer_(resolve, reject, fnName, loadingMsg, res); })
+      .catch(function (err) { failServer_(reject, loadingMsg, err); });
   });
 }
 function base64ToBlobUrl(base64, mime) {
@@ -1239,5 +1272,5 @@ window.addEventListener('load', function () {
   alert('Terjadi kesalahan saat memuat aplikasi:\n' + initError.message + '\n\nScreenshot pesan ini dan kirim ke developer.');
 }
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a345b7044a345844',t:'MTc4ODI4MDgwNw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a345e5f65bda1c0e',t:'MTc4ODI4MjcyOQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
