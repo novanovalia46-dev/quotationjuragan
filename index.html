@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Frontend Vercel: data tetap di Google Sheets via Apps Script. Push folder vercel-app/ ke GitHub. -->
+<!-- Frontend Vercel. Push folder vercel-app/ ke GitHub. -->
 <html lang="id">
 <head>
 <meta charset="utf-8">
@@ -109,6 +109,15 @@
 </style>
 </head>
 <body>
+
+<div id="gasSetupBar" style="display:none; position:fixed; top:0; left:0; right:0; z-index:3000; background:#fff3cd; border-bottom:1px solid #ffe69c; padding:12px 16px;">
+  <div class="fw-semibold mb-1">Hubungkan Google Apps Script</div>
+  <div class="small text-secondary mb-2">Jangan isi alamat Vercel (<code>quotationjuragan.vercel.app</code>). Tempel URL Web App yang berakhiran <code>/exec</code>.</div>
+  <div class="d-flex gap-2 flex-wrap">
+    <input type="url" class="form-control" id="gasUrlInput" placeholder="https://script.google.com/macros/s/XXXX/exec" style="max-width:640px;">
+    <button type="button" class="btn btn-brand text-nowrap" id="btnSimpanGasUrl">Simpan &amp; Muat Ulang</button>
+  </div>
+</div>
 
 <div id="loadingOverlay">
   <div class="spinner-border text-success" role="status"></div>
@@ -653,6 +662,27 @@ var APP_CONFIG = {
   apiToken: ''
 };
 
+function isGasHosted() {
+  return typeof google !== 'undefined' && google.script && google.script.run;
+}
+function getSavedGasUrl() {
+  try { return (localStorage.getItem('GAS_WEB_APP_URL') || '').trim(); } catch (e) { return ''; }
+}
+function showGasSetupBar() {
+  var bar = document.getElementById('gasSetupBar');
+  if (!bar || isGasHosted()) return;
+  bar.style.display = 'block';
+  document.body.style.paddingTop = bar.offsetHeight + 'px';
+  var input = document.getElementById('gasUrlInput');
+  if (input && !input.value) input.value = getSavedGasUrl();
+}
+function hideGasSetupBar() {
+  var bar = document.getElementById('gasSetupBar');
+  if (!bar) return;
+  bar.style.display = 'none';
+  document.body.style.paddingTop = '';
+}
+
 function finishServer_(resolve, reject, fnName, loadingMsg, res) {
   if (loadingMsg) hideLoading();
   if (res === null || res === undefined) {
@@ -668,7 +698,11 @@ function finishServer_(resolve, reject, fnName, loadingMsg, res) {
 function failServer_(reject, loadingMsg, err) {
   if (loadingMsg) hideLoading();
   console.error(err);
-  showToast('Terjadi kesalahan: ' + (err && err.message ? err.message : 'silakan coba lagi.'), 'error');
+  var msg = err && err.message ? err.message : 'silakan coba lagi.';
+  if (/GAS_WEB_APP_URL|URL Apps Script|NO_GAS_URL|BAD_GAS_URL|belum di-set|belum diisi/i.test(msg)) {
+    showGasSetupBar();
+  }
+  showToast('Terjadi kesalahan: ' + msg, 'error');
   reject(err);
 }
 
@@ -677,8 +711,7 @@ function runServer(fnName, args, loadingMsg) {
     if (loadingMsg) showLoading(loadingMsg);
     args = args || [];
 
-    // Apps Script (google.script.run) atau Vercel (fetch /api/gas)
-    if (typeof google !== 'undefined' && google.script && google.script.run) {
+    if (isGasHosted()) {
       google.script.run
         .withSuccessHandler(function (res) { finishServer_(resolve, reject, fnName, loadingMsg, res); })
         .withFailureHandler(function (err) { failServer_(reject, loadingMsg, err); })[fnName].apply(null, args);
@@ -688,13 +721,19 @@ function runServer(fnName, args, loadingMsg) {
     fetch(APP_CONFIG.apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: fnName, args: args, token: APP_CONFIG.apiToken || undefined })
+      body: JSON.stringify({
+        action: fnName,
+        args: args,
+        token: APP_CONFIG.apiToken || undefined,
+        gasUrl: getSavedGasUrl() || undefined
+      })
     })
       .then(function (r) {
         return r.text().then(function (text) {
           var data;
           try { data = JSON.parse(text); }
-          catch (e) { throw new Error('Respons server bukan JSON. Cek GAS_WEB_APP_URL di Vercel dan deploy Apps Script (Anyone).'); }
+          catch (e) { throw new Error('Respons server bukan JSON. Deploy ulang Apps Script sebagai Web app (Anyone).'); }
+          if (data && (data.code === 'NO_GAS_URL' || data.code === 'BAD_GAS_URL')) showGasSetupBar();
           if (!r.ok) throw new Error((data && data.message) || ('HTTP ' + r.status));
           return data;
         });
@@ -1263,7 +1302,19 @@ setupUpload('inputTtdStempel', 'previewTtdStempel', 'ttdstempel');
 // ============================================================
 // INIT
 // ============================================================
+document.getElementById('btnSimpanGasUrl').addEventListener('click', function () {
+  var url = (document.getElementById('gasUrlInput').value || '').trim().replace(/\/+$/, '');
+  if (!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(url)
+    && !/^https:\/\/script\.google\.com\/a\/macros\/[^/]+\/s\/[A-Za-z0-9_-]+\/exec$/.test(url)) {
+    return showToast('URL salah. Harus https://script.google.com/macros/s/.../exec', 'error');
+  }
+  localStorage.setItem('GAS_WEB_APP_URL', url);
+  hideGasSetupBar();
+  location.reload();
+});
+
 window.addEventListener('load', function () {
+  if (!isGasHosted() && !getSavedGasUrl()) showGasSetupBar();
   loadDashboard();
   loadJenisList();
 });
@@ -1272,5 +1323,5 @@ window.addEventListener('load', function () {
   alert('Terjadi kesalahan saat memuat aplikasi:\n' + initError.message + '\n\nScreenshot pesan ini dan kirim ke developer.');
 }
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a345e5f65bda1c0e',t:'MTc4ODI4MjcyOQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>
