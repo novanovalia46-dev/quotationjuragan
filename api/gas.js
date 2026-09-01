@@ -1,10 +1,15 @@
 /**
  * Proxy Vercel -> Google Apps Script.
- * Hindari masalah CORS saat frontend memanggil script.google.com.
- *
- * Set environment variable di Vercel:
- *   GAS_WEB_APP_URL = https://script.google.com/macros/s/XXXX/exec
+ * URL bisa dari: env Vercel, konstanta di bawah, atau yang ditempel di aplikasi.
  */
+var GAS_WEB_APP_URL = ''; // opsional: 'https://script.google.com/macros/s/XXXX/exec'
+
+function isValidGasUrl(url) {
+  url = String(url || '').trim();
+  return /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec\/?$/.test(url)
+    || /^https:\/\/script\.google\.com\/a\/macros\/[^/]+\/s\/[A-Za-z0-9_-]+\/exec\/?$/.test(url);
+}
+
 module.exports = async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
 
@@ -19,30 +24,44 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ success: false, message: 'Gunakan metode POST.' });
   }
 
-  var gasUrl = process.env.GAS_WEB_APP_URL;
+  var body = req.body;
+  if (typeof body === 'string') {
+    try { body = JSON.parse(body); } catch (e) { body = {}; }
+  }
+  body = body || {};
+
+  var gasUrl = process.env.GAS_WEB_APP_URL || GAS_WEB_APP_URL || body.gasUrl || '';
+  gasUrl = String(gasUrl).trim();
+
   if (!gasUrl) {
     return res.status(500).json({
       success: false,
-      message: 'GAS_WEB_APP_URL belum di-set. Isi di Vercel Project Settings > Environment Variables.'
+      code: 'NO_GAS_URL',
+      message: 'URL Apps Script belum diisi. Tempel URL /exec di kotak kuning di halaman ini.'
+    });
+  }
+  if (!isValidGasUrl(gasUrl)) {
+    return res.status(400).json({
+      success: false,
+      code: 'BAD_GAS_URL',
+      message: 'URL tidak valid. Harus https://script.google.com/macros/s/.../exec'
     });
   }
 
   try {
-    var payload = typeof req.body === 'string' ? req.body : JSON.stringify(req.body || {});
     var response = await fetch(gasUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: payload,
+      body: JSON.stringify(body),
       redirect: 'follow'
     });
     var text = await response.text();
     try {
-      var json = JSON.parse(text);
-      return res.status(200).json(json);
+      return res.status(200).json(JSON.parse(text));
     } catch (err) {
       return res.status(502).json({
         success: false,
-        message: 'Respons Apps Script bukan JSON. Deploy ulang web app: Execute as Me, Who has access = Anyone, lalu salin URL /exec terbaru.'
+        message: 'Respons Apps Script bukan JSON. Deploy Web app: Execute as Me, Who has access = Anyone.'
       });
     }
   } catch (err) {
